@@ -96,6 +96,38 @@ void persistentObjectRTCEnable(void)
 }
 
 #else
+
+#if defined(CH32H41x)
+
+#define BKP_DATA_ADDR    (0x2017FC00)   //resv  1KB
+
+uint32_t simbkpdataread(uint32_t id)
+{
+    return *(volatile uint32_t *)(BKP_DATA_ADDR+id*4);
+}
+
+void simbkpdatawrite(uint32_t id, uint32_t value)
+{
+    *(volatile uint32_t *)(BKP_DATA_ADDR+id*4) = value;
+}
+
+uint32_t getsoftresetflag(void)
+{
+    return (((RCC->RSTSCKR) & (RCC_SFTRSTF)) ==  RCC_SFTRSTF); //have softreset
+}
+
+uint32_t persistentObjectRead(persistentObjectId_e id)
+{
+    uint32_t value = simbkpdataread((uint32_t)id);
+    return value; 
+}
+
+void persistentObjectWrite(persistentObjectId_e id, uint32_t value)
+{
+    simbkpdatawrite((uint32_t)id, value);
+}
+
+#else
 uint32_t persistentObjectRead(persistentObjectId_e id)
 {
     uint32_t value = RTC_ReadBackupRegister(id);
@@ -118,12 +150,18 @@ void persistentObjectRTCEnable(void)
     RTC_WriteProtectionCmd(ENABLE);  // Reset sequence
     RTC_WriteProtectionCmd(DISABLE); // Apply sequence
 }
-#endif
+#endif //CH32H41x
+#endif //USE_HAL_DRIVER
 
 void persistentObjectInit(void)
 {
     // Configure and enable RTC for backup register access
+#ifdef CH32H41x
 
+    uint32_t wasSoftReset;
+    wasSoftReset = getsoftresetflag();
+
+#else
     persistentObjectRTCEnable();
 
     // XXX Magic value checking may be sufficient
@@ -135,6 +173,8 @@ void persistentObjectInit(void)
 #else
     wasSoftReset = RCC->CSR & RCC_CSR_SFTRSTF;
 #endif
+
+#endif //CH32H41x
 
     if (!wasSoftReset || (persistentObjectRead(PERSISTENT_OBJECT_MAGIC) != PERSISTENT_OBJECT_MAGIC_VALUE)) {
         for (int i = 1; i < PERSISTENT_OBJECT_COUNT; i++) {

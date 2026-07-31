@@ -37,7 +37,7 @@
 
 typedef uint16_t captureCompare_t;        // 16 bit on both 103 and 303, just register access must be 32bit sometimes (use timCCR_t)
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(UNIT_TEST) || defined(SIMULATOR_BUILD)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x) || defined(UNIT_TEST) || defined(SIMULATOR_BUILD)
 typedef uint32_t timCCR_t;
 typedef uint32_t timCCER_t;
 typedef uint32_t timSR_t;
@@ -87,25 +87,25 @@ typedef struct timerHardware_s {
     uint8_t channel;
     timerUsageFlag_e usageFlags;
     uint8_t output;
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x)
     uint8_t alternateFunction;
 #endif
 
 #if defined(USE_TIMER_DMA)
 
 #if defined(USE_DMA_SPEC)
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x)
     dmaResource_t *dmaRefConfigured;
     uint32_t dmaChannelConfigured;
 #endif
 #else // USE_DMA_SPEC
     dmaResource_t *dmaRef;
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x)
     uint32_t dmaChannel; // XXX Can be much smaller (e.g. uint8_t)
 #endif
 #endif // USE_DMA_SPEC
     dmaResource_t *dmaTimUPRef;
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x)
     uint32_t dmaTimUPChannel;
 #endif
     uint8_t dmaTimUPIrqHandler;
@@ -130,6 +130,15 @@ typedef enum {
 #elif defined(STM32G4)
 #define HARDWARE_TIMER_DEFINITION_COUNT 12
 #define TIMUP_TIMERS ( BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(15) | BIT(16) | BIT(17) | BIT(20))
+#elif defined(CH32H41x)
+#ifdef USE_INTERNAL_OSD
+//timer2/10/11/12 reserved for internal OSD 
+#define TIMUP_TIMERS ( BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(9) )
+#define HARDWARE_TIMER_DEFINITION_COUNT 12
+#else
+#define TIMUP_TIMERS ( BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12))
+#define HARDWARE_TIMER_DEFINITION_COUNT 12
+#endif
 #endif
 
 #define MHZ_TO_HZ(x) ((x) * 1000000)
@@ -160,6 +169,10 @@ extern const timerHardware_t timerHardware[];
 
 #define FULL_TIMER_CHANNEL_COUNT 93 // XXX Need review
 
+#elif defined(CH32H41x)
+
+#define FULL_TIMER_CHANNEL_COUNT 130
+
 #endif
 
 extern const timerHardware_t fullTimerHardware[];
@@ -182,6 +195,15 @@ extern const timerHardware_t fullTimerHardware[];
 #elif defined(STM32G4)
 
 #define USED_TIMERS ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(5) | TIM_N(6) | TIM_N(7) | TIM_N(8) | TIM_N(15) | TIM_N(16) | TIM_N(17) | TIM_N(20) )
+
+#elif defined(CH32H41x)
+
+#ifdef USE_INTERNAL_OSD
+//timer2/10/11/12 reserved for internal OSD 
+#define USED_TIMERS  ( BIT(1) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(9) )
+#else
+#define USED_TIMERS  ( BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12))
+#endif
 
 #else
     #error "No timer / channel tag definition found for CPU"

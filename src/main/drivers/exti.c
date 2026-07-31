@@ -36,11 +36,26 @@ typedef struct {
 
 extiChannelRec_t extiChannelRecs[16];
 
+#ifndef CH32H41x
+
 // IRQ grouping, same on F40x, F7xx, H7xx and G4xx.
 #define EXTI_IRQ_GROUPS 7
 //                                      0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 static const uint8_t extiGroups[16] = { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6 };
+
+#else
+
+// IRQ grouping
+#define EXTI_IRQ_GROUPS 2
+//                                      0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+static const uint8_t extiGroups[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 };
+
+#endif
+
 static uint8_t extiGroupPriority[EXTI_IRQ_GROUPS];
+
+
+
 
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
 static const uint8_t extiGroupIRQn[EXTI_IRQ_GROUPS] = {
@@ -52,6 +67,11 @@ static const uint8_t extiGroupIRQn[EXTI_IRQ_GROUPS] = {
     EXTI9_5_IRQn,
     EXTI15_10_IRQn
 };
+#elif defined(CH32H41x)
+static const uint8_t extiGroupIRQn[EXTI_IRQ_GROUPS] = {
+    EXTI7_0_IRQn,
+    EXTI15_8_IRQn
+};
 #else
 # warning "Unknown CPU"
 #endif
@@ -61,7 +81,7 @@ static uint32_t triggerLookupTable[] = {
     [BETAFLIGHT_EXTI_TRIGGER_RISING] = GPIO_MODE_IT_RISING,
     [BETAFLIGHT_EXTI_TRIGGER_FALLING] = GPIO_MODE_IT_FALLING,
     [BETAFLIGHT_EXTI_TRIGGER_BOTH] = GPIO_MODE_IT_RISING_FALLING
-#elif defined(STM32F4)
+#elif defined(STM32F4) || defined(CH32H41x)
     [BETAFLIGHT_EXTI_TRIGGER_RISING] = EXTI_Trigger_Rising,
     [BETAFLIGHT_EXTI_TRIGGER_FALLING] = EXTI_Trigger_Falling,
     [BETAFLIGHT_EXTI_TRIGGER_BOTH] = EXTI_Trigger_Rising_Falling
@@ -78,6 +98,9 @@ static uint32_t triggerLookupTable[] = {
 #elif defined(STM32G4)
 #define EXTI_REG_IMR (EXTI->IMR1)
 #define EXTI_REG_PR  (EXTI->PR1)
+#elif defined(CH32H41x)
+#define EXTI_REG_IMR (EXTI->INTENR)
+#define EXTI_REG_PR  (EXTI->INTFR)
 #else
 #define EXTI_REG_IMR (EXTI->IMR)
 #define EXTI_REG_PR  (EXTI->PR)
@@ -94,6 +117,10 @@ void EXTIInit(void)
 #ifdef REMAP_TIM17_DMA
     SYSCFG_DMAChannelRemapConfig(SYSCFG_DMARemap_TIM17, ENABLE);
 #endif
+#endif
+
+#if defined(CH32H41x)
+    RCC_HB2PeriphClockCmd(RCC_HB2Periph_AFIO,ENABLE);
 #endif
     memset(extiChannelRecs, 0, sizeof(extiChannelRecs));
     memset(extiGroupPriority, 0xff, sizeof(extiGroupPriority));
@@ -134,10 +161,13 @@ void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, ioConfig_t conf
         HAL_NVIC_EnableIRQ(extiGroupIRQn[group]);
     }
 #else
+
     IOConfigGPIO(io, config);
 
 #if defined(STM32F4)
     SYSCFG_EXTILineConfig(IO_EXTI_PortSourceGPIO(io), IO_EXTI_PinSource(io));
+#elif defined(CH32H41x)
+    GPIO_EXTILineConfig(IO_EXTI_PortSourceGPIO(io), IO_EXTI_PinSource(io));
 #else
 # warning "Unknown CPU"
 #endif
@@ -152,13 +182,17 @@ void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, ioConfig_t conf
 
     if (extiGroupPriority[group] > irqPriority) {
         extiGroupPriority[group] = irqPriority;
-
+#ifndef CH32H41x
         NVIC_InitTypeDef NVIC_InitStructure;
         NVIC_InitStructure.NVIC_IRQChannel = extiGroupIRQn[group];
         NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = NVIC_PRIORITY_BASE(irqPriority);
         NVIC_InitStructure.NVIC_IRQChannelSubPriority = NVIC_PRIORITY_SUB(irqPriority);
         NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
         NVIC_Init(&NVIC_InitStructure);
+#else
+        NVIC_SetPriority(extiGroupIRQn[group], irqPriority);
+        NVIC_EnableIRQ(extiGroupIRQn[group]);
+#endif        
     }
 #endif
 }
@@ -188,6 +222,13 @@ void EXTIEnable(IO_t io)
     }
 
     EXTI_REG_IMR |= extiLine;
+#elif defined(CH32H41x)
+    uint32_t extiLine = IO_EXTI_Line(io);
+
+    if (!extiLine) {
+        return;
+    }
+    EXTI_REG_IMR |= extiLine;    
 #else
 # error "Unknown CPU"
 #endif
@@ -205,6 +246,15 @@ void EXTIDisable(IO_t io)
 
     EXTI_REG_IMR &= ~extiLine;
     EXTI_REG_PR = extiLine;
+#elif defined(CH32H41x)
+    uint32_t extiLine = IO_EXTI_Line(io);
+
+    if (!extiLine) {
+        return;
+    }
+
+    EXTI_REG_IMR &= ~extiLine;
+    EXTI_REG_PR = extiLine;   
 #else
 # error "Unknown CPU"
 #endif
@@ -227,6 +277,22 @@ void EXTI_IRQHandler(uint32_t mask)
     }
 }
 
+#if defined(CH32H41x)
+
+#define _EXTI_IRQ_HANDLER(name, mask)            \
+__FAST_INTERRUPT void name(void) {               \
+        EXTI_IRQHandler(mask & EXTI_EVENT_MASK); \
+    }                                            \
+    struct dummy                                 \
+    /**/
+
+
+_EXTI_IRQ_HANDLER(EXTI7_0_IRQHandler, 0x00FF);
+_EXTI_IRQ_HANDLER(EXTI15_8_IRQHandler,0xFF00);
+
+
+#else
+
 #define _EXTI_IRQ_HANDLER(name, mask)            \
     void name(void) {                            \
         EXTI_IRQHandler(mask & EXTI_EVENT_MASK); \
@@ -246,6 +312,8 @@ _EXTI_IRQ_HANDLER(EXTI3_IRQHandler, 0x0008);
 _EXTI_IRQ_HANDLER(EXTI4_IRQHandler, 0x0010);
 _EXTI_IRQ_HANDLER(EXTI9_5_IRQHandler, 0x03e0);
 _EXTI_IRQ_HANDLER(EXTI15_10_IRQHandler, 0xfc00);
+
+#endif
 
 #endif
 

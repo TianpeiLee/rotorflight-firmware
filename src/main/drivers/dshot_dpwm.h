@@ -61,7 +61,7 @@ motorDevice_t *dshotPwmDevInit(const struct motorDevConfig_s *motorConfig, uint8
 #define GCR_TELEMETRY_INPUT_LEN MAX_GCR_EDGES
 
 // For H7, DMA buffer is placed in a dedicated segment for coherency management
-#if defined(STM32H7)
+#if defined(STM32H7) || defined(CH32H41x)
 #define DSHOT_DMA_BUFFER_ATTRIBUTE DMA_RAM
 #elif defined(STM32G4)
 #define DSHOT_DMA_BUFFER_ATTRIBUTE DMA_RAM_W
@@ -71,7 +71,7 @@ motorDevice_t *dshotPwmDevInit(const struct motorDevConfig_s *motorConfig, uint8
 #define DSHOT_DMA_BUFFER_ATTRIBUTE // None
 #endif
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x)
 #define DSHOT_DMA_BUFFER_UNIT uint32_t
 #else
 #define DSHOT_DMA_BUFFER_UNIT uint8_t

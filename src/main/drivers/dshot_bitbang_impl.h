@@ -79,6 +79,9 @@
 #ifdef USE_HAL_DRIVER
 #define BB_GPIO_PULLDOWN GPIO_PULLDOWN
 #define BB_GPIO_PULLUP   GPIO_PULLUP
+#elif defined(CH32H41x)
+#define BB_GPIO_PULLDOWN GPIO_PULL_DOWN
+#define BB_GPIO_PULLUP   GPIO_PULL_UP
 #else
 #define BB_GPIO_PULLDOWN GPIO_PuPd_DOWN
 #define BB_GPIO_PULLUP   GPIO_PuPd_UP
@@ -97,6 +100,12 @@ typedef struct dmaRegCache_s {
     uint32_t CNDTR;
     uint32_t CPAR;
     uint32_t CMAR;
+#elif defined(CH32H41x)
+    uint32_t CFGR;
+    uint32_t CNTR;
+    uint32_t PADDR;
+    uint32_t MADDR;
+    uint32_t M1ADDR; 
 #else
 #error No MCU dependent code here
 #endif

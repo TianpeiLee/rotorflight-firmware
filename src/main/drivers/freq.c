@@ -45,7 +45,7 @@
 // Maximum depends on the max clock freq
 #if defined(STM32F411xE)
 #define FREQ_PRESCALER_MAX    0x0080
-#elif defined(STM32F4) || defined(STM32G4) || defined(STM32F7)
+#elif defined(STM32F4) || defined(STM32G4) || defined(STM32F7) || defined(CH32H41x)
 #define FREQ_PRESCALER_MAX    0x0100
 #elif defined(STM32H7)
 #define FREQ_PRESCALER_MAX    0x0200
@@ -147,8 +147,16 @@ static void freqSetBaseClock(freqInputPort_t *input, uint32_t prescaler)
     input->prescaler = prescaler;
 
     tim->PSC = prescaler - 1;
+#if defined(CH32H41x)    
+if (tim == TIM9 || tim == TIM10 || tim == TIM11 || tim == TIM12)
+    tim->ATRLR_32 = 0xffffffff;
+else    
+    tim->ATRLR = 0xffff;
+    tim->SWEVGR = TIM_UG;
+#else 
     tim->ARR = 0xffffffff;
     tim->EGR = TIM_EGR_UG;
+#endif
 }
 
 static void freqResetCapture(freqInputPort_t *input, uint8_t port)

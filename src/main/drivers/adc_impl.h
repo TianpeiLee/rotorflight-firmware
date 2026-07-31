@@ -39,6 +39,12 @@
 #else
 #define ADC_TAG_MAP_COUNT 47
 #endif
+#elif defined(CH32H41x)
+#ifdef USE_ADC_INTERNAL
+#define ADC_TAG_MAP_COUNT 17
+#else
+#define ADC_TAG_MAP_COUNT 15
+#endif
 #else
 #define ADC_TAG_MAP_COUNT 10
 #endif
@@ -138,4 +144,13 @@ void adcGetChannelValues(void);
 #define TEMPSENSOR_CAL_VREFANALOG          (3300U)
 #define TEMPSENSOR_CAL1_TEMP               ((int32_t)  30)
 #define TEMPSENSOR_CAL2_TEMP               ((int32_t) 110)
+#endif
+
+#ifdef CH32H41x
+#define VREFINT_EXPECTED                   (1501U)  // The raw ADC reading at 12bit resolution expected for the 1V21 internal ref
+#define VREFINT_CAL_VREF                   (3300U)  // The nominal external Vref+ for the above reading
+#define TEMPSENSOR_CAL_VREFANALOG          (3300U)
+#define TEMPSENSOR_CAL1_TEMP               (25U)
+#define TEMPSENSOR_CAL1_V                  (1.45f)
+#define TEMPSENSOR_SLOPE                   (4.3f) //  mV/C
 #endif

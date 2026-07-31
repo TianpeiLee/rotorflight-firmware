@@ -33,6 +33,9 @@ typedef struct dmaChannelSpec_s {
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
     uint32_t              channel;
 #endif
+#if defined(USE_DNA_MUX)
+    uint32_t              dmaMuxId;
+#endif 
 } dmaChannelSpec_t;
 
 #define DMA_CODE(dma, stream, chanreq) ((dma << 12)|(stream << 8)|(chanreq << 0))
@@ -58,6 +61,9 @@ typedef int8_t dmaoptValue_t;
 #if defined(STM32H7) || defined(STM32G4)
 #define MAX_PERIPHERAL_DMA_OPTIONS 16
 #define MAX_TIMER_DMA_OPTIONS 16
+#elif defined(CH32H41x)
+#define MAX_PERIPHERAL_DMA_OPTIONS  16
+#define MAX_TIMER_DMA_OPTIONS       16
 #else
 #define MAX_PERIPHERAL_DMA_OPTIONS 2
 #define MAX_TIMER_DMA_OPTIONS 3

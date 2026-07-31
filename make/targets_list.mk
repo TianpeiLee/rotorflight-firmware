@@ -21,6 +21,7 @@ UNIFIED_TARGETS := \
 	STM32F745  \
 	STM32G47X  \
 	STM32H743  \
+    CH32H41x   \
 
 # Legacy targets are targets that have been replaced by Unified Target configurations
 LEGACY_TARGETS := \

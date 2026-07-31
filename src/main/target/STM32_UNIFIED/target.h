@@ -31,7 +31,7 @@
 #define USE_BEEPER
 
 #undef  USE_GYRO_DLPF_EXPERIMENTAL
-#define USE_GYRO_CLK
+// #define USE_GYRO_CLK
 
 #define USE_ACC
 #define USE_GYRO
@@ -105,10 +105,10 @@
 
 #define USE_VCP
 
-#define USE_SOFTSERIAL1
-#define USE_SOFTSERIAL2
+// #define USE_SOFTSERIAL1
+// #define USE_SOFTSERIAL2
 
-#define UNIFIED_SERIAL_PORT_COUNT       3
+// #define UNIFIED_SERIAL_PORT_COUNT       3
 
 #define USE_USB_DETECT
 
@@ -457,6 +457,168 @@
 #define USE_LEDSTRIP_CACHE_MGMT
 
 #define DEFAULT_FEATURES         (FEATURE_DYN_NOTCH)
+
+
+#elif defined(CH32H41x)
+
+#define V5_V3_CLOCK_RATE                    4
+
+#undef I2C_FULL_RECONFIGURABILITY
+#undef SPI_FULL_RECONFIGURABILITY
+
+#define TARGET_BOARD_IDENTIFIER "H415"
+#define USBD_PRODUCT_STRING     "Rotorflight CH323H415"
+
+#define USE_VCP
+#define UNIFIED_SERIAL_PORT_COUNT       1
+
+#define USE_I2C
+// #define USE_I2C_DEVICE_1
+#define USE_I2C_DEVICE_2
+// #define USE_I2C_DEVICE_3
+// #define USE_I2C_DEVICE_4
+
+#define I2C_DEVICE_2            (I2CDEV_2)
+#define I2C2_SCL                PC0
+#define I2C2_SDA                PC1
+
+
+#define USE_UART1
+#define USE_UART2
+#define USE_UART3
+#define USE_UART4
+#define USE_UART5
+#define USE_UART6
+#define USE_UART7
+#define USE_UART8
+
+#define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 8)
+
+
+
+#define USE_SPI
+// #define USE_SPI_DEVICE_1
+#define USE_SPI_DEVICE_2
+#define USE_SPI_DEVICE_3
+#define USE_SPI_DEVICE_4
+#define USE_SPI_DMA_ENABLE_EARLY
+
+#define USE_EXTI
+#define USE_DNA_MUX
+
+#define TARGET_IO_PORTA 0xff1f
+#define TARGET_IO_PORTB 0xff7c
+#define TARGET_IO_PORTC 0xffff
+#define TARGET_IO_PORTD 0xffff
+#define TARGET_IO_PORTE 0xffff
+#define TARGET_IO_PORTF 0xffff
+
+#define VOLTAGE_TASK_FREQ_HZ     200
+#define CURRENT_TASK_FREQ_HZ     200
+#define ESC_SENSOR_TASK_FREQ_HZ  200
+
+#define DEFAULT_FEATURES         (FEATURE_DYN_NOTCH)
+
+#define USE_ADC
+
+#define ADC_INSTANCE                        ADC1
+#define ADC1_DMA_OPT                        0
+#define VBAT_ADC_PIN                        PC3
+#define CURRENT_METER_ADC_PIN               PC2
+#define DEFAULT_VOLTAGE_METER_SOURCE        VOLTAGE_METER_ADC
+#define DEFAULT_CURRENT_METER_SOURCE        CURRENT_METER_ADC
+
+
+
+#undef USE_TRANSPONDER
+#undef USE_DSHOT_DMAR
+#define USE_DSHOT_BITBAND
+#define USE_BEEPER
+#define USE_ESCSERIAL
+// #define FLASH_PAGE_SIZE ((uint32_t)0x2000) // 8K sectors
+
+
+
+
+#define LED0_PIN                            PC4
+
+#define USE_ACC
+#define USE_ACC_SPI_ICM42688P
+
+#define USE_BARO
+#define USE_BARO_DPS310
+#define DEFAULT_BARO_DPS310
+
+#define USE_GYRO
+#define USE_GYRO_SPI_ICM42688P
+
+#define USE_FLASH
+#define USE_FLASH_M25P16
+#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+
+// #define CAMERA_CONTROL_PIN                  PA4
+
+#define UART1_TX_PIN                        PA9
+#define UART2_TX_PIN                        PA2
+#define UART3_TX_PIN                        PA13
+#define UART4_TX_PIN                        PC6
+#define UART5_TX_PIN                        PE0
+#define UART6_TX_PIN                        PA0
+//#define UART7_TX_PIN                        PA0
+#define UART8_TX_PIN                        PB4
+
+#define UART1_RX_PIN                        PA10
+#define UART2_RX_PIN                        PA3
+#define UART3_RX_PIN                        PA14
+#define UART4_RX_PIN                        PC7
+#define UART5_RX_PIN                        PF5
+#define UART6_RX_PIN                        PA1
+#define UART7_RX_PIN                        PB12
+#define UART8_RX_PIN                        PB3
+
+
+
+#define SPI2_SCK_PIN                        PB13
+#define SPI3_SCK_PIN                        PC10
+#define SPI4_SCK_PIN                        PE12
+
+#define SPI2_MOSI_PIN                        PB15
+#define SPI3_MOSI_PIN                        PC12
+#define SPI4_MOSI_PIN                        PE14
+
+#define SPI2_MISO_PIN                        PB14
+#define SPI3_MISO_PIN                        PC11
+#define SPI4_MISO_PIN                        PE13
+
+
+#define FLASH_CS_PIN                        PB10
+#define FLASH_SPI_INSTANCE                  SPI4
+
+#define GYRO_1_EXTI_PIN                     PA15
+#define GYRO_1_CS_PIN                       PF3
+#define GYRO_1_SPI_INSTANCE                 SPI3
+
+#define DEFAULT_DSHOT_BITBANG               DSHOT_BITBANG_ON
+
+#define BARO_I2C_INSTANCE                   I2CDEV_2
+
+#define USE_MAG
+#define USE_MAG_HMC5883
+#define USE_MAG_QMC5883
+#define USE_MAG_LIS3MDL
+#define MAG_I2C_INSTANCE                    I2CDEV_2
+
+
+#define USE_SDCARD
+#define USE_SDCARD_SPI
+#define SDCARD_SPI_CS_PIN                   PE11
+#define SDCARD_SPI_INSTANCE                 SPI2
+
+
+
+#define BEEPER_INVERTED
+#define SYSTEM_HSE_MHZ   25
+
 
 
 /*

@@ -25,7 +25,7 @@
 
 #include "platform.h"
 
-#ifdef USE_PWM_OUTPUT
+#if defined(USE_PWM_OUTPUT) && !defined(CH32H41x)
 
 #include "common/maths.h"
 

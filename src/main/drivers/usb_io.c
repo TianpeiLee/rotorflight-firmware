@@ -69,7 +69,11 @@ bool usbCableIsInserted(void)
 void usbGenerateDisconnectPulse(void)
 {
     /* Pull down PA12 to create USB disconnect pulse */
+    #ifdef CH32H41x
+    IO_t usbPin = IOGetByTag(IO_TAG(PB8));
+    #else
     IO_t usbPin = IOGetByTag(IO_TAG(PA12));
+    #endif    
     IOConfigGPIO(usbPin, IOCFG_OUT_OD);
 
     IOLo(usbPin);

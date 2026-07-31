@@ -193,6 +193,10 @@ ioTag_t timerioTagGetByUsage(timerUsageFlag_e usageFlag, uint8_t index)
 
 volatile timCCR_t* timerCCR(TIM_TypeDef *tim, uint8_t channel)
 {
+#if defined(CH32H41x)
+    return (volatile timCCR_t*)((volatile char*)&tim->CH1CVR + channel);
+#else    
     return (volatile timCCR_t*)((volatile char*)&tim->CCR1 + channel);
+#endif
 }
 #endif

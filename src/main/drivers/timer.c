@@ -311,6 +311,10 @@ uint8_t timerInputIrq(TIM_TypeDef *tim)
 
 void timerNVICConfigure(uint8_t irq)
 {
+#if defined(CH32H41x)
+    NVIC_SetPriority(irq, NVIC_PRIO_TIMER);
+    NVIC_EnableIRQ(irq);
+#else    
     NVIC_InitTypeDef NVIC_InitStructure;
 
     NVIC_InitStructure.NVIC_IRQChannel = irq;
@@ -318,6 +322,7 @@ void timerNVICConfigure(uint8_t irq)
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER);
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
+#endif
 }
 
 void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz)
@@ -376,14 +381,17 @@ void timerChInit(const timerHardware_t *timHw, channelType_t type, int irqPriori
         configTimeBase(usedTimers[timer], 0, 1);
         TIM_Cmd(usedTimers[timer],  ENABLE);
 
+#if defined(CH32H41x)
+        NVIC_SetPriority(irq ,irqPriority);
+        NVIC_EnableIRQ( irq );
+#else        
         NVIC_InitTypeDef NVIC_InitStructure;
-
         NVIC_InitStructure.NVIC_IRQChannel = irq;
         NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = NVIC_PRIORITY_BASE(irqPriority);
         NVIC_InitStructure.NVIC_IRQChannelSubPriority = NVIC_PRIORITY_SUB(irqPriority);
         NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
         NVIC_Init(&NVIC_InitStructure);
-
+#endif
         timerInfo[timer].priority = irqPriority;
     }
 }
@@ -572,24 +580,42 @@ void timerChConfigICDual(const timerHardware_t *timHw, bool polarityRising, unsi
 void timerChICPolarity(const timerHardware_t *timHw, bool polarityRising)
 {
     timCCER_t tmpccer = timHw->tim->CCER;
+#if defined(CH32H41x)
+    tmpccer &= ~(TIM_CC1P << timHw->channel);
+    tmpccer |= polarityRising ? (TIM_ICPolarity_Rising << timHw->channel) : (TIM_ICPolarity_Falling << timHw->channel);
+    timHw->tim->CCER = tmpccer;
+#else    
     tmpccer &= ~(TIM_CCER_CC1P << timHw->channel);
     tmpccer |= polarityRising ? (TIM_ICPolarity_Rising << timHw->channel) : (TIM_ICPolarity_Falling << timHw->channel);
     timHw->tim->CCER = tmpccer;
+#endif
 }
 
 volatile timCCR_t* timerChCCRHi(const timerHardware_t *timHw)
 {
+#if defined(CH32H41x)
+    return (volatile timCCR_t*)((volatile char*)&timHw->tim->CH1CVR + (timHw->channel | TIM_Channel_2));
+#else
     return (volatile timCCR_t*)((volatile char*)&timHw->tim->CCR1 + (timHw->channel | TIM_Channel_2));
+#endif
 }
 
 volatile timCCR_t* timerChCCRLo(const timerHardware_t *timHw)
 {
+#if defined(CH32H41x)
+    return (volatile timCCR_t*)((volatile char*)&timHw->tim->CH1CVR + (timHw->channel & ~TIM_Channel_2));
+#else
     return (volatile timCCR_t*)((volatile char*)&timHw->tim->CCR1 + (timHw->channel & ~TIM_Channel_2));
+#endif
 }
 
 volatile timCCR_t* timerChCCR(const timerHardware_t *timHw)
 {
+#if defined(CH32H41x)
+    return (volatile timCCR_t*)((volatile char*)&timHw->tim->CH1CVR + timHw->channel);
+#else    
     return (volatile timCCR_t*)((volatile char*)&timHw->tim->CCR1 + timHw->channel);
+#endif
 }
 
 void timerChConfigOC(const timerHardware_t* timHw, bool outEnable, bool stateHigh)
@@ -632,14 +658,22 @@ static void timCCxHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig)
 {
     uint16_t capture;
     unsigned tim_status;
+#if defined(CH32H41x)
+    tim_status = tim->INTFR & tim->DMAINTENR;
+#else    
     tim_status = tim->SR & tim->DIER;
+#endif
 #if 1
     while (tim_status) {
         // flags will be cleared by reading CCR in dual capture, make sure we call handler correctly
         // current order is highest bit first. Code should not rely on specific order (it will introduce race conditions anyway)
         unsigned bit = __builtin_clz(tim_status);
         unsigned mask = ~(0x80000000 >> bit);
+#if defined(CH32H41x)
+        tim->INTFR = mask;
+#else        
         tim->SR = mask;
+#endif
         tim_status &= mask;
         switch (bit) {
             case __builtin_clz(TIM_IT_Update): {
@@ -648,7 +682,11 @@ static void timCCxHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig)
                     capture = timerConfig->forcedOverflowTimerValue - 1;
                     timerConfig->forcedOverflowTimerValue = 0;
                 } else {
+#if defined(CH32H41x)
+                    capture = tim->ATRLR;
+#else                     
                     capture = tim->ARR;
+#endif
                 }
 
                 timerOvrHandlerRec_t *cb = timerConfig->overflowCallbackActive;
@@ -658,6 +696,21 @@ static void timCCxHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig)
                 }
                 break;
             }
+#if defined(CH32H41x)
+            case __builtin_clz(TIM_IT_CC1):
+                timerConfig->edgeCallback[0]->fn(timerConfig->edgeCallback[0], tim->CH1CVR);
+                break;
+            case __builtin_clz(TIM_IT_CC2):
+                timerConfig->edgeCallback[1]->fn(timerConfig->edgeCallback[1], tim->CH2CVR);
+                break;
+            case __builtin_clz(TIM_IT_CC3):
+                timerConfig->edgeCallback[2]->fn(timerConfig->edgeCallback[2], tim->CH3CVR);
+                break;
+            case __builtin_clz(TIM_IT_CC4):
+                timerConfig->edgeCallback[3]->fn(timerConfig->edgeCallback[3], tim->CH4CVR);
+                break;
+
+#else            
             case __builtin_clz(TIM_IT_CC1):
                 timerConfig->edgeCallback[0]->fn(timerConfig->edgeCallback[0], tim->CCR1);
                 break;
@@ -670,6 +723,7 @@ static void timCCxHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig)
             case __builtin_clz(TIM_IT_CC4):
                 timerConfig->edgeCallback[3]->fn(timerConfig->edgeCallback[3], tim->CCR4);
                 break;
+#endif                
         }
     }
 #else
@@ -705,13 +759,21 @@ static inline void timUpdateHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig
 {
     uint16_t capture;
     unsigned tim_status;
+#if defined(CH32H41x)
+    tim_status = tim->INTFR & tim->DMAINTENR;
+#else    
     tim_status = tim->SR & tim->DIER;
+#endif
     while (tim_status) {
         // flags will be cleared by reading CCR in dual capture, make sure we call handler correctly
         // currrent order is highest bit first. Code should not rely on specific order (it will introduce race conditions anyway)
         unsigned bit = __builtin_clz(tim_status);
         unsigned mask = ~(0x80000000 >> bit);
+#if defined(CH32H41x)
+        tim->INTFR = mask;
+#else
         tim->SR = mask;
+#endif
         tim_status &= mask;
         switch (bit) {
             case __builtin_clz(TIM_IT_Update): {
@@ -720,7 +782,11 @@ static inline void timUpdateHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig
                     capture = timerConfig->forcedOverflowTimerValue - 1;
                     timerConfig->forcedOverflowTimerValue = 0;
                 } else {
+                    #if defined(CH32H41x)
+                    capture = tim->ATRLR;
+                    #else
                     capture = tim->ARR;
+                    #endif
                 }
 
                 timerOvrHandlerRec_t *cb = timerConfig->overflowCallbackActive;
@@ -733,6 +799,72 @@ static inline void timUpdateHandler(TIM_TypeDef *tim, timerConfig_t *timerConfig
         }
     }
 }
+
+
+#if defined(CH32H41x)
+// handler for shared interrupts when both timers need to check status bits
+#define _TIM_IRQ_HANDLER2(name, i, j)                                   \
+    __FAST_INTERRUPT void name(void)                                    \
+    {                                                                   \
+        timCCxHandler(TIM ## i, &timerConfig[TIMER_INDEX(i)]);          \
+        timCCxHandler(TIM ## j, &timerConfig[TIMER_INDEX(j)]);          \
+    } struct dummy
+
+#define _TIM_IRQ_HANDLER(name, i)                                       \
+    __FAST_INTERRUPT void name(void)                                    \
+    {                                                                   \
+        timCCxHandler(TIM ## i, &timerConfig[TIMER_INDEX(i)]);          \
+    } struct dummy
+
+#define _TIM_IRQ_HANDLER_UPDATE_ONLY(name, i)                           \
+    __FAST_INTERRUPT void name(void)                                    \
+    {                                                                   \
+        timUpdateHandler(TIM ## i, &timerConfig[TIMER_INDEX(i)]);       \
+    } struct dummy    
+
+#if USED_TIMERS & TIM_N(1)
+_TIM_IRQ_HANDLER(TIM1_CC_IRQHandler, 1);
+_TIM_IRQ_HANDLER(TIM1_UP_IRQHandler, 1);
+#endif
+#if USED_TIMERS & TIM_N(2)
+_TIM_IRQ_HANDLER(TIM2_IRQHandler, 2);
+#endif
+#if USED_TIMERS & TIM_N(3)
+_TIM_IRQ_HANDLER(TIM3_IRQHandler, 3);
+#endif
+#if USED_TIMERS & TIM_N(4)
+_TIM_IRQ_HANDLER(TIM4_IRQHandler, 4);
+#endif
+#if USED_TIMERS & TIM_N(5)
+_TIM_IRQ_HANDLER(TIM5_IRQHandler, 5);
+#endif
+//TIM6 & TIM7 have been used by cammare control
+// #if USED_TIMERS & TIM_N(6)
+// _TIM_IRQ_HANDLER(TIM6_IRQHandler, 6);
+// #endif
+// #if USED_TIMERS & TIM_N(7)
+// _TIM_IRQ_HANDLER(TIM7_IRQHandler, 7);
+// #endif
+#if USED_TIMERS & TIM_N(8)
+_TIM_IRQ_HANDLER(TIM8_CC_IRQHandler, 8);
+_TIM_IRQ_HANDLER(TIM8_UP_IRQHandler, 8);
+#endif
+#if USED_TIMERS & TIM_N(9)
+_TIM_IRQ_HANDLER(TIM9_IRQHandler, 9);
+#endif
+//TODO: there may be a bug
+#if USED_TIMERS & TIM_N(10)
+_TIM_IRQ_HANDLER(TIM10_IRQHandler, 10);
+#endif
+#  if USED_TIMERS & TIM_N(11)
+_TIM_IRQ_HANDLER(TIM11_IRQHandler, 11);
+#  endif
+#if USED_TIMERS & TIM_N(12)
+_TIM_IRQ_HANDLER(TIM12_IRQHandler, 12);
+#endif    
+
+
+#else
 
 // handler for shared interrupts when both timers need to check status bits
 #define _TIM_IRQ_HANDLER2(name, i, j)                                   \
@@ -824,6 +956,8 @@ _TIM_IRQ_HANDLER(TIM1_BRK_TIM15_IRQHandler, 15);
 _TIM_IRQ_HANDLER(TIM1_TRG_COM_TIM17_IRQHandler, 17);
 #endif
 
+#endif
+
 void timerInit(void)
 {
     memset(timerConfig, 0, sizeof(timerConfig));
@@ -892,7 +1026,11 @@ void timerForceOverflow(TIM_TypeDef *tim)
         timerConfig[timerIndex].forcedOverflowTimerValue = tim->CNT + 1;
 
         // Force an overflow by setting the UG bit
+#if defined(CH32H41x)
+        tim->SWEVGR |= TIM_UG;
+#else        
         tim->EGR |= TIM_EGR_UG;
+#endif        
     }
 }
 

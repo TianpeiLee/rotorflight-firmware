@@ -111,6 +111,38 @@ void RCC_ClockCmd(rccPeriphTag_t periphTag, FunctionalState NewState)
 
 #endif
     }
+
+#elif defined(CH32H41x)
+
+#define NOSUFFIX // Empty
+
+#define __RCC_CLK_ENABLE(bus, suffix, enbit)   do {      \
+        __IO uint32_t tmpreg;                                \
+        SET_BIT(RCC->bus ## PCENR ## suffix, enbit);            \
+        tmpreg = READ_BIT(RCC->bus ## PCENR ## suffix, enbit);  \
+        UNUSED(tmpreg);                                      \
+    } while(0)
+
+#define __RCC_CLK_DISABLE(bus, suffix, enbit) (RCC->bus ## PCENR ## suffix &= ~(enbit))
+
+#define __RCC_CLK(bus, suffix, enbit, newState) \
+    if (newState == ENABLE) {                       \
+        __RCC_CLK_ENABLE(bus, suffix, enbit);   \
+    } else {                                        \
+        __RCC_CLK_DISABLE(bus, suffix, enbit);  \
+    }
+
+    switch (tag) {
+        case RCC_HB:
+            __RCC_CLK(HB, NOSUFFIX, mask, NewState);
+            break;
+        case RCC_HB2:
+            __RCC_CLK(HB2, NOSUFFIX, mask, NewState);
+            break;
+        case RCC_HB1:
+            __RCC_CLK(HB1, NOSUFFIX, mask, NewState);
+            break;
+    }    
 #else
     switch (tag) {
     case RCC_APB2:
@@ -133,6 +165,7 @@ void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState)
     int tag = periphTag >> 5;
     uint32_t mask = 1 << (periphTag & 0x1f);
 
+#ifndef CH32H41x    
 // Peripheral reset control relies on RSTR bits are identical to ENR bits where applicable
 
 #define __HAL_RCC_FORCE_RESET(bus, suffix, enbit) (RCC->bus ## RSTR ## suffix |= (enbit))
@@ -143,7 +176,17 @@ void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState)
     } else {                                          \
         __HAL_RCC_FORCE_RESET(bus, suffix, enbit);    \
     }
+#else    
+    #define __RCC_FORCE_RESET(bus, suffix, enbit) (RCC->bus ## PRSTR ## suffix |= (enbit))
+    #define __RCC_RELEASE_RESET(bus, suffix, enbit) (RCC->bus ## PRSTR ## suffix &= ~(enbit))
+    #define __RCC_RESET(bus, suffix, enbit, NewState) \
+        if (NewState == ENABLE) {                         \
+            __RCC_RELEASE_RESET(bus, suffix, enbit);  \
+        } else {                                          \
+            __RCC_FORCE_RESET(bus, suffix, enbit);    \
+        }
 
+#endif
 #if defined(USE_HAL_DRIVER)
 
     switch (tag) {
@@ -204,7 +247,20 @@ void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState)
 
 #endif
     }
+#elif defined(CH32H41x)
+    switch (tag) {
+        case RCC_HB:
+            __RCC_RESET(HB, NOSUFFIX, mask, NewState);
+            break;
 
+        case RCC_HB2:
+            __RCC_RESET(HB2, NOSUFFIX, mask, NewState);
+            break;
+
+        case RCC_HB1:
+            __RCC_RESET(HB1, NOSUFFIX, mask, NewState);
+            break;
+    }
 #else
 
     switch (tag) {

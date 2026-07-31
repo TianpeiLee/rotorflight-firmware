@@ -56,8 +56,9 @@
 #include "io/serial.h"
 
 typedef void (*putc_f) (void *, char);
-
+#ifdef USE_ITM_PRINTF
 void printfITMInit(void);
+#endif
 void printfSerialInit(serialPortIdentifier_e port, uint32_t baudRate, portOptions_e options);
 
 int tfp_format(void *putp, putc_f putf, const char *fmt, va_list va);

@@ -418,6 +418,7 @@ void init(void)
 #if !defined(USE_FAKE_LED)
     ledInit(statusLedConfig());
 #endif
+
     LED2_ON;
 
 #if !defined(SIMULATOR_BUILD)
@@ -1002,7 +1003,7 @@ void init(void)
 #endif
 
     // On H7/G4 allocate SPI DMA streams after motor timers as SPI DMA allocate will always be possible
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || (CH32H41x)
 #ifdef USE_SPI
     // Attempt to enable DMA on all SPI busses
     spiInitBusDMA();

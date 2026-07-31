@@ -108,6 +108,62 @@
 #define STM32F4
 #endif
 
+#elif defined(CH32H41x)
+
+#include "ch32h417.h"
+#include "ch32_debug.h"
+
+
+#ifndef UID_BASE
+#define UID_BASE 0x1ffff7e8UL
+#endif
+
+// Chip Unique ID on H41X
+#define U_ID_0 (*(uint32_t*)0x1ffff7e8)
+#define U_ID_1 (*(uint32_t*)0x1ffff7ec)
+#define U_ID_2 (*(uint32_t*)0x1ffff7f0)
+
+
+
+#define FLASH_CONFIG_STREAMER_BUFFER_SIZE   256     // fast program is 256bytes
+#define FLASH_CONFIG_BUFFER_TYPE            uint32_t
+
+#define __FAST_INTERRUPT       __attribute__((interrupt("WCH-Interrupt-fast")))
+
+#ifndef CH32H4
+#define CH32H4
+#endif
+
+
+#define SET_BIT(REG, BIT)     ((REG) |= (BIT))
+#define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
+#define READ_BIT(REG, BIT)    ((REG) & (BIT))
+#define CLEAR_REG(REG)        ((REG) = (0x0))
+#define WRITE_REG(REG, VAL)   ((REG) = (VAL))
+#define READ_REG(REG)         ((REG))
+#define MODIFY_REG(REG, CLEARMASK, SETMASK)  WRITE_REG((REG), (((READ_REG(REG)) & (~(CLEARMASK))) | (SETMASK)))
+
+#define FLASH_PAGE_SIZE ((uint32_t)0x2000) // 8K sectors
+#define USE_DMA_MUX
+
+// #define USE_ITCM_RAM
+// #define ITCM_RAM_OPTIMISATION "-O2", "-freorder-blocks-algorithm=simple"
+// #define USE_FAST_DATA
+// #define USE_RPM_FILTER
+// #define USE_DYN_IDLE
+// #define USE_DYN_NOTCH_FILTER
+// // #define USE_OVERCLOCK
+// #define USE_ADC_INTERNAL
+// #define ADC_VOLTAGE_REFERENCE_MV  3300  //maybe better  cali internal
+// #define USE_USB_MSC
+// #define USE_PERSISTENT_MSC_RTC
+// // #define USE_MCO
+// #define USE_DMA_SPEC
+// #define USE_PERSISTENT_OBJECTS
+// #define USE_LATE_TASK_STATISTICS
+
+
+
 #elif defined(SIMULATOR_BUILD)
 
 // Nop

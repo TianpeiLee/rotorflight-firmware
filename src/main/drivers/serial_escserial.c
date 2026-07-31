@@ -377,7 +377,11 @@ static void onSerialRxPinChangeBL(timerCCHandlerRec_t *cbRec, captureCompare_t c
 #ifdef USE_HAL_DRIVER
         __HAL_TIM_SetCounter(escSerial->txTimerHandle, __HAL_TIM_GetAutoreload(escSerial->txTimerHandle) / 2);
 #else
+    #if defined(CH32H41x) 
+        TIM_SetCounter(escSerial->txTimerHardware->tim, escSerial->txTimerHardware->tim->ATRLR / 2);
+    #else
         TIM_SetCounter(escSerial->txTimerHardware->tim, escSerial->txTimerHardware->tim->ARR / 2);
+    #endif
 #endif
         if (escSerial->isTransmittingData) {
             escSerial->transmissionErrors++;

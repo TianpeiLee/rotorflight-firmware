@@ -156,8 +156,9 @@ else
 ifeq ($(DEBUG),INFO)
 DEBUG_FLAGS            = -ggdb3
 endif
-OPTIMISATION_BASE     := -flto -fuse-linker-plugin -ffast-math -fmerge-all-constants
-OPTIMISE_DEFAULT      := -O2
+#OPTIMISATION_BASE     := -flto -fuse-linker-plugin -ffast-math -fmerge-all-constants
+OPTIMISATION_BASE     := -fuse-linker-plugin -ffast-math -fmerge-all-constants
+OPTIMISE_DEFAULT      := -O3
 OPTIMISE_SPEED        := -Ofast
 OPTIMISE_SIZE         := -Os
 
@@ -240,17 +241,29 @@ CCACHE :=
 endif
 
 # Make parallelism
-JFLAG ?= -j 4
+JFLAG ?= -j 2
 
 # Tool names
-CROSS_CC    := $(CCACHE) $(ARM_SDK_PREFIX)gcc
-CROSS_CXX   := $(CCACHE) $(ARM_SDK_PREFIX)g++
-CROSS_GDB   := $(ARM_SDK_PREFIX)gdb
-OBJCOPY     := $(ARM_SDK_PREFIX)objcopy
-OBJDUMP     := $(ARM_SDK_PREFIX)objdump
-READELF     := $(ARM_SDK_PREFIX)readelf
-SIZE        := $(ARM_SDK_PREFIX)size
+
+# CROSS_CC    := $(CCACHE) $(ARM_SDK_PREFIX)gcc
+# CROSS_CXX   := $(CCACHE) $(ARM_SDK_PREFIX)g++
+# CROSS_GDB   := $(ARM_SDK_PREFIX)gdb
+# OBJCOPY     := $(ARM_SDK_PREFIX)objcopy
+# OBJDUMP     := $(ARM_SDK_PREFIX)objdump
+# READELF     := $(ARM_SDK_PREFIX)readelf
+# SIZE        := $(ARM_SDK_PREFIX)size
+# DFUSE-PACK  := src/utils/dfuse-pack.py
+
+CROSS_CC    := $(CCACHE) $(RISCV_SDK_PREFIX)gcc
+CROSS_CXX   := $(CCACHE) $(RISCV_SDK_PREFIX)g++
+CROSS_GDB   := $(RISCV_SDK_PREFIX)gdb
+OBJCOPY     := $(RISCV_SDK_PREFIX)objcopy
+OBJDUMP     := $(RISCV_SDK_PREFIX)objdump
+READELF     := $(RISCV_SDK_PREFIX)readelf
+SIZE        := $(RISCV_SDK_PREFIX)size
 DFUSE-PACK  := src/utils/dfuse-pack.py
+
+
 
 #
 # Tool options.
@@ -264,35 +277,90 @@ CC_NO_OPTIMISATION      :=
 #
 # Added after GCC version update, remove once the warnings have been fixed
 #
-TEMPORARY_FLAGS :=
+# TEMPORARY_FLAGS :=
+
+# CFLAGS     += $(ARCH_FLAGS) \
+#               $(addprefix -D,$(OPTIONS)) \
+#               $(addprefix -I,$(INCLUDE_DIRS)) \
+#               $(DEBUG_FLAGS) \
+#               -std=gnu17 \
+#               -Wall -Wextra -Werror -Wpedantic -Wunsafe-loop-optimizations -Wdouble-promotion -Wstrict-prototypes \
+#               -ffunction-sections \
+#               -fdata-sections \
+#               -fno-common \
+#               $(TEMPORARY_FLAGS) \
+#               $(DEVICE_FLAGS) \
+#               -D_GNU_SOURCE \
+#               -DUSE_STDPERIPH_DRIVER \
+#               -D$(TARGET) \
+#               $(TARGET_FLAGS) \
+#               -D'__FORKNAME__="$(FORKNAME)"' \
+#               -D'__TARGET__="$(TARGET)"' \
+#               -D'__REVISION__="$(REVISION)"' \
+#               -pipe \
+#               -MMD -MP \
+#               $(EXTRA_FLAGS)
+
+# ASFLAGS     = $(ARCH_FLAGS) \
+#               $(DEBUG_FLAGS) \
+#               -x assembler-with-cpp \
+#               $(addprefix -I,$(INCLUDE_DIRS)) \
+#               -MMD -MP
+
+
+EXTRA_WARNING_FLAGS := 
 
 CFLAGS     += $(ARCH_FLAGS) \
               $(addprefix -D,$(OPTIONS)) \
               $(addprefix -I,$(INCLUDE_DIRS)) \
               $(DEBUG_FLAGS) \
               -std=gnu17 \
-              -Wall -Wextra -Werror -Wpedantic -Wunsafe-loop-optimizations -Wdouble-promotion -Wstrict-prototypes \
+              -Wunused -Wuninitialized \
+              $(EXTRA_WARNING_FLAGS) \
               -ffunction-sections \
               -fdata-sections \
               -fno-common \
               $(TEMPORARY_FLAGS) \
               $(DEVICE_FLAGS) \
               -D_GNU_SOURCE \
-              -DUSE_STDPERIPH_DRIVER \
               -D$(TARGET) \
               $(TARGET_FLAGS) \
               -D'__FORKNAME__="$(FORKNAME)"' \
               -D'__TARGET__="$(TARGET)"' \
               -D'__REVISION__="$(REVISION)"' \
+              $(CONFIG_REVISION_DEFINE) \
               -pipe \
               -MMD -MP \
               $(EXTRA_FLAGS)
+
+
 
 ASFLAGS     = $(ARCH_FLAGS) \
               $(DEBUG_FLAGS) \
               -x assembler-with-cpp \
               $(addprefix -I,$(INCLUDE_DIRS)) \
               -MMD -MP
+
+
+# ifeq ($(LD_FLAGS),)
+# LD_FLAGS     = -lm \
+#               -nostartfiles \
+#               --specs=nano.specs \
+#               -lc \
+#               -lnosys \
+#               $(ARCH_FLAGS) \
+#               $(LTO_FLAGS) \
+#               $(DEBUG_FLAGS) \
+#               -static \
+#               -Wl,-gc-sections,-Map,$(TARGET_MAP) \
+#               -Wl,-L$(LINKER_DIR) \
+#               -Wl,--cref \
+#               -Wl,--no-wchar-size-warning \
+#               -Wl,--print-memory-usage \
+#               -T$(LD_SCRIPT) \
+#                $(EXTRA_LD_FLAGS)
+# endif
+
 
 ifeq ($(LD_FLAGS),)
 LD_FLAGS     = -lm \
@@ -307,12 +375,10 @@ LD_FLAGS     = -lm \
               -Wl,-gc-sections,-Map,$(TARGET_MAP) \
               -Wl,-L$(LINKER_DIR) \
               -Wl,--cref \
-              -Wl,--no-wchar-size-warning \
               -Wl,--print-memory-usage \
               -T$(LD_SCRIPT) \
                $(EXTRA_LD_FLAGS)
 endif
-
 
 ###############################################################################
 # No user-serviceable parts below

@@ -93,6 +93,8 @@ void config_streamer_start(config_streamer_t *c, uintptr_t base, int size)
 #elif defined(CONFIG_IN_FLASH) || defined(CONFIG_IN_FILE)
 #if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
         HAL_FLASH_Unlock();
+#elif defined(CH32H41x) 
+        FLASH_Unlock_Fast();
 #else
         FLASH_Unlock();
 #endif
@@ -111,6 +113,8 @@ void config_streamer_start(config_streamer_t *c, uintptr_t base, int size)
     // NOP
 #elif defined(STM32G4)
     // NOP
+#elif defined(CH32H41x)
+    // NOP    
 #elif defined(UNIT_TEST) || defined(SIMULATOR_BUILD)
     // NOP
 #else
@@ -261,6 +265,23 @@ static uint32_t getFLASHSectorForEEPROM(void)
         failureMode(FAILURE_CONFIG_STORE_FAILURE);
     }
 }
+
+#elif defined(CH32H41x)
+
+/*
+Sector 0    0x08000000 - 0x08003FFF 16 Kbytes
+Sector 1    0x08004000 - 0x08007FFF 16 Kbytes
+Sector 2    0x08008000 - 0x0800BFFF 16 Kbytes
+Sector 3    0x0800C000 - 0x0800FFFF 16 Kbytes
+Sector 4    0x08010000 - 0x0801FFFF 64 Kbytes
+Sector 5    0x08020000 - 0x0803FFFF 128 Kbytes
+Sector 6    0x08040000 - 0x0805FFFF 128 Kbytes
+Sector 7    0x08060000 - 0x0807FFFF 128 Kbytes
+*/
+
+
+
+
 
 #elif defined(STM32H743xx) || defined(STM32G4) || defined(STM32H7A3xx) || defined(STM32H7A3xxQ) || defined(STM32H723xx) || defined(STM32H725xx)
 /*
@@ -492,6 +513,25 @@ static int write_word(config_streamer_t *c, config_streamer_buffer_align_type_t 
     if (status != HAL_OK) {
         return -2;
     }
+#elif defined(CH32H41x)
+
+    if (c->address % FLASH_PAGE_SIZE == 0) {
+        const FLASH_Status status = FLASH_ErasePage(c->address);
+        if (status != FLASH_COMPLETE) {
+            return -1;
+        }
+    }
+    //CH32H415/6/7 Fast page programming size is 256 bytes
+    STATIC_ASSERT(CONFIG_STREAMER_BUFFER_SIZE == sizeof(uint32_t)*64,  "CONFIG_STREAMER_BUFFER_SIZE does not match written size");
+    
+    FLASH_ProgramPage_Fast(c->address, buffer);
+    const FLASH_Status status = FLASH_GetStatus();
+    // const FLASH_Status status = FLASH_ProgramWord(address, *buffer);
+    if (status != FLASH_COMPLETE) {
+        return -2;
+    }  
+
+
 #else // !STM32H7 && !STM32F7 && !STM32G4
     if (c->address % FLASH_PAGE_SIZE == 0) {
         const FLASH_Status status = FLASH_EraseSector(getFLASHSectorForEEPROM(), VoltageRange_3); //0x08080000 to 0x080A0000
@@ -553,6 +593,8 @@ int config_streamer_finish(config_streamer_t *c)
 #elif defined(CONFIG_IN_FLASH)
 #if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
         HAL_FLASH_Lock();
+#elif defined(CH32H41x)
+        FLASH_Lock();        
 #else
         FLASH_Lock();
 #endif

@@ -74,6 +74,20 @@ void getCastleTelemetry(castleTelemetry_t* telem)
 #define IC_INPUT_INDIRECT TIM_CCMR1_CC1S_1
 #define IC_INPUT_TRC TIM_CCMR1_CC1S
 
+#if defined(CH32H41x)
+#define OC_MODE_TOGGLE (TIM_OC1M_1 | TIM_OC1M_0)
+#define OC_MODE_FORCED_ACTIVE TIM_OC1M_2
+#define OC_MODE_FORCED_INACTIVE (TIM_OC1M_2 | TIM_OC1M_0)
+#define OC_MODE_PWM1 (TIM_OC1M_2 | TIM_OC1M_1)
+#define OC_MODE_PWM2 (TIM_OC1M_2 | TIM_OC1M_1 | TIM_OC1M_0)
+// modes with OCxM_3 set aren't supported here.
+#define OC_PRELOAD_DISABLE 0
+#define OC_PRELOAD_ENABLE TIM_OC1PE
+#define OC_FAST_DISABLE 0
+#define OC_FAST_ENABLE TIM_OC1FE
+#define CCMR1 CHCTLR1
+#else
+
 #define OC_MODE_FROZEN 0
 #define OC_MODE_ACTIVE TIM_CCMR1_OC1M_0
 #define OC_MODE_INACTIVE TIM_CCMR1_OC1M_1
@@ -87,6 +101,7 @@ void getCastleTelemetry(castleTelemetry_t* telem)
 #define OC_PRELOAD_ENABLE TIM_CCMR1_OC1PE
 #define OC_FAST_DISABLE 0
 #define OC_FAST_ENABLE TIM_CCMR1_OC1FE
+#endif
 
 // Must provide OC_MODE and OC_FAST and OC_PRELOAD
 // or IC_FILTER, IC_PSC, and IC_INPUT

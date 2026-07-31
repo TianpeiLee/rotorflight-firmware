@@ -13,6 +13,74 @@
 #
 ##############################
 
+#############################
+# 
+# add risc-v environmental
+#
+#############################
+#RISCV_SDK_DIR := $(TOOLS_DIR)/riscv-gun-toolchain-12.2.0-x86_64-w64-mingw32-riscv-wch-elf
+RISCV_SDK_DIR ?= $(TOOLS_DIR)/gcc-riscv-wch-elf-12.2-2021.10
+RISCV_GCC_REQUIRED_VERSION ?= 12.2.0
+
+.PHONY: riscv_sdk_version
+
+riscv_sdk_version:
+# 	$(V1) $(RISCV_SDK_DIR)/bin/riscv-wch-elf-gcc --version
+	$(V1) $(RISCV_SDK_PREFIX)gcc --version
+
+## riscv_sdk_install   : Install RISCV SDK
+.PHONY: riscv_sdk_install
+
+RISCV_SDK_URL_BASE  := https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-riscv-wch-elf-12.2-2021.10
+# source: https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads
+ifeq ($(OSFAMILY), linux)
+  RISCV_SDK_URL  := $(RISCV_SDK_URL_BASE)-$(shell uname -m)-linux.tar.bz2
+endif
+
+ifeq ($(OSFAMILY), macosx)
+  RISCV_SDK_URL  := $(RISCV_SDK_URL_BASE)-mac.tar.bz2
+endif
+
+ifeq ($(OSFAMILY), windows)
+  RISCV_SDK_URL  := $(RISCV_SDK_URL_BASE)-win32.zip
+endif
+
+RISCV_SDK_FILE := $(notdir $(RISCV_SDK_URL))
+
+RISCV_SDK_INSTALL_MARKER := $(RISCV_SDK_DIR)/bin/riscv-wch-elf-gcc-$(RISCV_GCC_REQUIRED_VERSION)
+
+# order-only prereq on directory existance:
+riscv_sdk_install: | $(TOOLS_DIR)
+riscv_sdk_install: riscv_sdk_download $(RISCV_SDK_INSTALL_MARKER)
+
+$(RISCV_SDK_INSTALL_MARKER):
+ifneq ($(OSFAMILY), windows)
+        # binary only release so just extract it
+	$(V1) tar -C $(TOOLS_DIR) -xjf "$(DL_DIR)/$(RISCV_SDK_FILE)"
+else
+	$(V1) unzip -q -d $(RISCV_SDK_DIR) "$(DL_DIR)/$(RISCV_SDK_FILE)"
+endif
+
+
+.PHONY: riscv_sdk_download
+riscv_sdk_download: | $(DL_DIR)
+riscv_sdk_download: $(DL_DIR)/$(RISCV_SDK_FILE)
+$(DL_DIR)/$(RISCV_SDK_FILE):
+    # download the source only if it's newer than what we already have
+	$(V1) curl -L -k -o "$@" $(if $(wildcard $@), -z "$@",) "$(RISCV_SDK_URL)"
+
+## riscv_sdk_clean     : Uninstall RISCV SDK
+.PHONY: riscv_sdk_clean
+riscv_sdk_clean:
+	$(V1) [ ! -d "$(RISCV_SDK_DIR)" ] || $(RM) -r $(RISCV_SDK_DIR)
+	$(V1) [ ! -d "$(DL_DIR)" ] || $(RM) -r $(DL_DIR)
+
+
+
+
+
+
+
 # Set up ARM (STM32) SDK
 ARM_SDK_DIR ?= $(TOOLS_DIR)/gcc-arm-none-eabi-9-2020-q2-update
 # Checked below, Should match the output of $(shell arm-none-eabi-gcc -dumpversion)
@@ -272,6 +340,23 @@ else ifeq (,$(findstring _install,$(MAKECMDGOALS)))
   # ARM tookchain is in the path, and the version is what's required.
   ARM_SDK_PREFIX ?= arm-none-eabi-
 endif
+
+
+ifeq ($(shell [ -d "$(RISCV_SDK_DIR)" ] && echo "exists"), exists)
+  RISCV_SDK_PREFIX := $(RISCV_SDK_DIR)/bin/riscv-wch-elf-
+else ifeq (,$(filter %_install test% clean% %-print checks help configs, $(MAKECMDGOALS)))
+  GCC_VERSION = $(shell risc-wch-elf-gcc -dumpversion)
+  ifeq ($(GCC_VERSION),)
+    $(error **ERROR** risc-wch-elf-gcc not in the PATH. Run 'make riscv_sdk_install' to install automatically in the tools folder of this repo)
+  else ifneq ($(GCC_VERSION), $(RISCV_GCC_REQUIRED_VERSION))
+    $(error **ERROR** your risc-wch-elf-gcc is '$(GCC_VERSION)', but '$(GCC_REQUIRED_VERSION)' is expected. Override with 'GCC_REQUIRED_VERSION' in mk/local.mk or run 'make arm_sdk_install' to install the right version automatically in the tools folder of this repo)
+  endif
+
+  # ARM toolchain is in the path, and the version is what's required.
+  RISCV_SDK_PREFIX ?= riscv-wch-elf-
+endif
+
+
 
 ifeq ($(shell [ -d "$(ZIP_DIR)" ] && echo "exists"), exists)
   export ZIPBIN := $(ZIP_DIR)/zip

@@ -79,6 +79,7 @@ static void cameraControlLo(void)
     }
 }
 
+#ifndef CH32H41x
 void TIM6_DAC_IRQHandler(void)
 {
     cameraControlHi();
@@ -92,6 +93,23 @@ void TIM7_IRQHandler(void)
 
     TIM7->SR = 0;
 }
+#else
+
+__FAST_INTERRUPT
+void TIM6_IRQHandler(void)
+{
+    cameraControlHi();
+    TIM6->INTFR = 0;
+}
+__FAST_INTERRUPT
+void TIM7_IRQHandler(void)
+{
+    cameraControlLo();
+    TIM7->INTFR = 0;
+}
+
+#endif//CH32H41x
+
 #endif
 
 void cameraControlInit(void)
@@ -128,6 +146,7 @@ void cameraControlInit(void)
         cameraControlRuntime.period = CAMERA_CONTROL_SOFT_PWM_RESOLUTION;
         cameraControlRuntime.enabled = true;
 
+#ifndef CH32H41x        
         NVIC_InitTypeDef nvicTIM6 = {
             TIM6_DAC_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER), NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER), ENABLE
         };
@@ -140,6 +159,17 @@ void cameraControlInit(void)
         RCC->APB1ENR |= RCC_APB1Periph_TIM6 | RCC_APB1Periph_TIM7;
         TIM6->PSC = 0;
         TIM7->PSC = 0;
+#else
+        NVIC_SetPriority(TIM6_IRQn,NVIC_PRIO_TIMER);
+        NVIC_EnableIRQ(TIM6_IRQn);
+        NVIC_SetPriority(TIM7_IRQn,NVIC_PRIO_TIMER);
+        NVIC_EnableIRQ(TIM7_IRQn);
+
+        RCC->HB1PCENR |= RCC_HB1Periph_TIM6 | RCC_HB1Periph_TIM7;
+        TIM6->PSC = 0;
+        TIM7->PSC = 0;
+#endif //CH32H41x
+
 #endif
     } else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode) {
         // @todo not yet implemented
@@ -174,6 +204,78 @@ static float calculatePWMDutyCycle(const cameraControlKey_e key)
 }
 #endif
 
+
+#if defined(CH32H41x)
+void cameraControlKeyPress(cameraControlKey_e key, uint32_t holdDurationMs)
+{
+    if (!cameraControlRuntime.enabled)
+        return;
+
+    if (key >= CAMERA_CONTROL_KEYS_COUNT)
+        return;
+
+#if defined(CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE) || defined(CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE)
+    const float dutyCycle = calculatePWMDutyCycle(key);
+#else
+    (void) holdDurationMs;
+#endif
+
+#ifdef USE_OSD
+    // Force OSD timeout so we are alone on the display.
+    resumeRefreshAt = 0;
+#endif 
+
+    if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode) {
+#ifdef CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE
+        *cameraControlRuntime.channel.ccr = lrintf(dutyCycle * cameraControlRuntime.period);
+        endTimeMillis = millis() + cameraControlConfig()->keyDelayMs + holdDurationMs;
+#endif
+    } else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode) {
+#ifdef CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE
+        const uint32_t hiTime = lrintf(dutyCycle * cameraControlRuntime.period);
+
+        if (0 == hiTime) {
+            cameraControlLo();
+            delay(cameraControlConfig()->keyDelayMs + holdDurationMs);
+            cameraControlHi();
+        } else {
+            TIM6->CNT = hiTime;
+            TIM6->ATRLR = cameraControlRuntime.period;
+
+            TIM7->CNT = 0;
+            TIM7->ATRLR = cameraControlRuntime.period;
+
+            // Start two timers as simultaneously as possible
+            ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+                TIM6->CTLR1 = TIM_CEN;
+                TIM7->CTLR1 = TIM_CEN;
+            }
+
+            // Enable interrupt generation
+            TIM6->DMAINTENR = TIM_IT_Update;
+            TIM7->DMAINTENR = TIM_IT_Update;
+
+            const uint32_t endTime = millis() + cameraControlConfig()->keyDelayMs + holdDurationMs;
+
+            // Wait to give the camera a chance at registering the key press
+            while (millis() < endTime);
+
+            // Disable timers and interrupt generation
+            TIM6->CTLR1 &= ~TIM_CEN;
+            TIM7->CTLR1 &= ~TIM_CEN;
+            TIM6->DMAINTENR = 0;
+            TIM7->DMAINTENR = 0;
+
+            // Reset to idle state
+            IOHi(cameraControlRuntime.io);
+        }
+#endif
+    } else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode) {
+        // @todo not yet implemented
+    }
+
+}
+#else
 void cameraControlKeyPress(cameraControlKey_e key, uint32_t holdDurationMs)
 {
     if (!cameraControlRuntime.enabled)
@@ -242,5 +344,6 @@ void cameraControlKeyPress(cameraControlKey_e key, uint32_t holdDurationMs)
         // @todo not yet implemented
     }
 }
+#endif //CH32H41x
 
 #endif

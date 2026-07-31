@@ -39,6 +39,40 @@
 
 #include "system.h"
 
+#ifdef CH32H41x
+
+#ifndef V5_V3_CLOCK_RATE
+#define V5_V3_CLOCK_RATE  2
+#endif
+
+    uint32_t __get_MCYCLE(void)
+    {
+        uint32_t result;
+
+        asm volatile ( "csrr %0," "mcycle" : "=r"(result) : );
+        return (result);
+    }
+
+    void __set_MCYCLE(uint32_t value)
+    {
+        asm volatile ("csrw mcycle, %0" : : "r" (value) );
+    }
+
+    void __set_MCOUNT_INHIBIT(uint32_t value)
+    {
+        asm volatile ("csrw mucounteren, %0" : : "r" (value) );
+    }
+
+    uint32_t __get_MCOUNT_INHIBIT(void)
+    {
+        uint32_t result;
+        asm volatile ( "csrr %0," "mucounteren" : "=r"(result) : );
+        return (result);
+    }    
+#endif
+
+
+
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
 // See "RM CoreSight Architecture Specification"
 // B2.3.10  "LSR and LAR, Software Lock Status Register and Software Lock Access Register"
@@ -59,6 +93,17 @@ static uint32_t cpuClockFrequency = 0;
 
 void cycleCounterInit(void)
 {
+#if defined(CH32H41x)
+    cpuClockFrequency =  HCLKClock;       
+    
+    usTicks = HCLKClock / 1000000;
+    // usTicksInv = 1e6f / cpuClockFrequency;    
+
+      //only can operate under M mode
+    __set_MCOUNT_INHIBIT(0x5);  //disable mcycle
+    __set_MCYCLE(0);          
+    __set_MCOUNT_INHIBIT(0x0);  //enable mcycle
+#else
 #if defined(USE_HAL_DRIVER)
     cpuClockFrequency = HAL_RCC_GetSysClockFreq();
 #else
@@ -85,12 +130,79 @@ void cycleCounterInit(void)
 
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+#endif
 }
 
 // SysTick
 
 static volatile int sysTickPending = 0;
 
+#if defined(CH32H41x)
+
+__FAST_INTERRUPT
+void SysTick1_Handler(void)
+{
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        sysTickUptime++;
+        sysTickValStamp = SysTick1->CNT;
+        sysTickPending = 0;
+        SysTick0->ISR &= ~(1<<1);   //clear Systick1 int
+    }
+}
+
+uint32_t microsISR(void)
+{
+    volatile uint32_t ms, pending, cycle_cnt;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        cycle_cnt = SysTick1->CNT;
+
+        //H41x, Systick1 count flag at Systick0->ISR bit1
+        if (SysTick0->ISR & (1<<1)) {
+            // Update pending.
+            // Record it for multiple calls within the same rollover period
+            // (Will be cleared when serviced).
+            // Note that multiple rollovers are not considered.
+
+            sysTickPending = 1;
+
+            // Read VAL again to ensure the value is read after the rollover.
+
+            cycle_cnt = SysTick1->CNT;
+        }
+
+        ms = sysTickUptime;
+        pending = sysTickPending;
+    }
+
+    return ((ms + pending) * 1000) + (usTicks * 1000 - cycle_cnt) / usTicks;
+}
+
+uint32_t micros(void)
+{
+    register uint32_t ms, cycle_cnt;
+
+    // Call microsISR() in interrupt and elevated (non-zero) BASEPRI context
+    if((PFIC->GISR & 0xFF) || (__get_BASEPRI())){
+         return microsISR();
+    }
+
+    do {
+        ms = sysTickUptime;
+        cycle_cnt = SysTick1->CNT;
+    } while (ms != sysTickUptime || cycle_cnt > sysTickValStamp);
+
+    return (ms * 1000) + (usTicks * 1000 - cycle_cnt) / usTicks;
+}
+
+//machine cycle == Systemcoreclock  
+uint32_t getCycleCounter(void)  
+{
+    return __get_MCYCLE( );
+}
+
+
+#else
 void SysTick_Handler(void)
 {
     ATOMIC_BLOCK(NVIC_PRIO_MAX) {
@@ -157,6 +269,31 @@ uint32_t getCycleCounter(void)
     return DWT->CYCCNT;
 }
 
+#endif
+
+
+
+#if defined(CH32H41x)
+
+//cyclecount = V5_V3_CLOCK_RATE * Systick_CLK
+int32_t clockCyclesToMicros(int32_t clockCycles)
+{
+    return clockCycles / usTicks / V5_V3_CLOCK_RATE;
+}
+
+// Note that this conversion is signed as this is used for periods rather than absolute timestamps
+int32_t clockCyclesTo10thMicros(int32_t clockCycles)
+{
+    return 10 * clockCycles / (int32_t)usTicks / V5_V3_CLOCK_RATE;
+}
+
+uint32_t clockMicrosToCycles(uint32_t micros)
+{
+    return micros * usTicks * V5_V3_CLOCK_RATE;
+}
+
+#else
+
 int32_t clockCyclesToMicros(int32_t clockCycles)
 {
     return clockCycles / usTicks;
@@ -172,6 +309,9 @@ uint32_t clockMicrosToCycles(uint32_t micros)
 {
     return micros * usTicks;
 }
+
+#endif
+
 
 // Return system uptime in milliseconds (rollover in 49 days)
 uint32_t millis(void)
@@ -328,5 +468,9 @@ void systemReset(int reason)
     motorShutdown();
     servoShutdown();
 
+#if defined(CH32H41x)
+    NVIC_SystemReset();
+#else    
     systemResetHard();
+#endif
 }

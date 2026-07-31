@@ -22,6 +22,10 @@
 
 #include "drivers/resource.h"
 
+#if defined(USE_CHBSP_DRIVER)
+#include "drivers/dma_chbsp.h"
+#endif
+
 #define CACHE_LINE_SIZE 32
 #define CACHE_LINE_MASK (CACHE_LINE_SIZE - 1)
 
@@ -60,6 +64,9 @@ typedef struct dmaChannelDescriptor_s {
     resourceOwner_t             owner;
     uint8_t                     resourceIndex;
     uint32_t                    completeFlag;
+#if defined(USE_CHBSP_DRIVER)
+    dmamux_channel_type         *dmamux;
+#endif    
 } dmaChannelDescriptor_t;
 
 #if defined(STM32F7)
@@ -70,7 +77,9 @@ typedef struct dmaChannelDescriptor_s {
 
 #define DMA_IDENTIFIER_TO_INDEX(x) ((x) - 1)
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+#if defined(USE_CHBSP_DRIVER)
+
+#elif defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
 
 typedef enum {
     DMA_NONE = 0,
@@ -239,6 +248,9 @@ typedef enum {
 #define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CCR & DMA_CCR_EN)
 // Missing __HAL_DMA_SET_COUNTER in FW library V1.0.0
 #define __HAL_DMA_SET_COUNTER(__HANDLE__, __COUNTER__) ((__HANDLE__)->Instance->CNDTR = (uint16_t)(__COUNTER__))
+#elif defined(CH32H41x)
+#define DMA_CCR_EN 1U
+#define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CFGR & DMA_CCR_EN)
 #else
 #define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CCR & DMA_CCR_EN)
 #define DMAx_SetMemoryAddress(reg, address) ((DMA_ARCH_TYPE *)(reg))->CMAR = (uint32_t)&s->port.txBuffer[s->port.txBufferTail]
@@ -268,6 +280,8 @@ uint32_t dmaGetChannel(const uint8_t channel);
 #define xLL_EX_DMA_GetDataLength(dmaResource) LL_EX_DMA_GetDataLength((DMA_ARCH_TYPE *)(dmaResource))
 #define xLL_EX_DMA_SetDataLength(dmaResource, length) LL_EX_DMA_SetDataLength((DMA_ARCH_TYPE *)(dmaResource), length)
 #define xLL_EX_DMA_EnableIT_TC(dmaResource) LL_EX_DMA_EnableIT_TC((DMA_ARCH_TYPE *)(dmaResource))
+
+#elif defined(USE_CHBSP_DRIVER)
 
 #else
 

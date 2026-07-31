@@ -21,7 +21,6 @@
 #pragma once
 
 #include "drivers/dma.h" // For dmaResource_t
-
 // Since serial ports can be used for any function these buffer sizes should be equal
 // The two largest things that need to be sent are: 1, MSP responses, 2, UBLOX SVINFO packet.
 
@@ -56,6 +55,11 @@ typedef struct uartPort_s {
     dmaResource_t *txDMAResource;
     uint32_t rxDMAChannel;
     uint32_t txDMAChannel;
+
+#if defined(CH32H41x)
+    uint32_t rxDMAMuxId;
+    uint32_t txDMAMuxId;
+#endif
 
     uint32_t rxDMAIrq;
     uint32_t txDMAIrq;

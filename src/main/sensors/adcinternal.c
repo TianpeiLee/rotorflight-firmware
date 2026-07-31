@@ -102,9 +102,12 @@ void adcInternalInit(void)
 {
     // Call adcInternalProcess repeatedly to fill moving average array
     for (int i = 0 ; i < 9 ; i++) {
-        while (adcInternalIsBusy()) {
-            // empty
+        // === 临时:加超时,避免 ADC 转换不完成时死等卡死 ===
+        uint32_t timeout = 1000000;
+        while (adcInternalIsBusy() && timeout) {
+            timeout--;
         }
+        // === 超时结束 ===
         adcInternalProcess(0);
     }
 }

@@ -30,6 +30,13 @@ FEATURES        += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
 CUSTOM_DEFAULTS_EXTENDED = yes
 endif
 
+ifneq ($(findstring CH32H41x,$(TARGET)),)
+H41x_TARGETS   += $(TARGET)
+FEATURES        += VCP SDCARD_SPI ONBOARDFLASH
+DEVICE_FLAGS    += -DCore_V5F -DRISC_V
+HSE_VALUE       = 25000000
+endif
+
 TARGET_SRC = \
     $(addprefix drivers/accgyro/,$(notdir $(wildcard $(SRC_DIR)/drivers/accgyro/*.c))) \
     $(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270_maximum_fifo.c \

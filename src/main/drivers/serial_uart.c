@@ -54,7 +54,7 @@
 #elif defined(STM32F7)
 #define UART_TX_BUFFER_ATTRIBUTE FAST_DATA_ZERO_INIT // DTCM RAM
 #define UART_RX_BUFFER_ATTRIBUTE FAST_DATA_ZERO_INIT // DTCM RAM
-#elif defined(STM32F4)
+#elif defined(STM32F4) || defined(CH32H41x)
 #define UART_TX_BUFFER_ATTRIBUTE                    // NONE
 #define UART_RX_BUFFER_ATTRIBUTE                    // NONE
 #else
@@ -322,7 +322,11 @@ void uartConfigureDma(uartDevice_t *uartdev)
         dmaChannelSpec = dmaGetChannelSpecByPeripheral(DMA_PERIPH_UART_TX, device, serialUartConfig(device)->txDmaopt);
         if (dmaChannelSpec) {
             uartPort->txDMAResource = dmaChannelSpec->ref;
+#if defined(CH32H41x)            
+            uartPort->txDMAMuxId = dmaChannelSpec->dmaMuxId;
+#else
             uartPort->txDMAChannel = dmaChannelSpec->channel;
+#endif            
         }
     }
 
@@ -330,7 +334,11 @@ void uartConfigureDma(uartDevice_t *uartdev)
         dmaChannelSpec = dmaGetChannelSpecByPeripheral(DMA_PERIPH_UART_RX, device, serialUartConfig(device)->txDmaopt);
         if (dmaChannelSpec) {
             uartPort->rxDMAResource = dmaChannelSpec->ref;
+#if defined(CH32H41x)
+            uartPort->rxDMAMuxId = dmaChannelSpec->dmaMuxId;
+#else            
             uartPort->rxDMAChannel = dmaChannelSpec->channel;
+#endif        
         }
     }
 #else
@@ -338,12 +346,20 @@ void uartConfigureDma(uartDevice_t *uartdev)
 
     if (hardware->rxDMAResource) {
         uartPort->rxDMAResource = hardware->rxDMAResource;
+#if defined(CH32H41x)
+        uartPort->rxDMAMuxId = hardware->rxDMAMuxId;
+#else
         uartPort->rxDMAChannel = hardware->rxDMAChannel;
+#endif
     }
 
     if (hardware->txDMAResource) {
         uartPort->txDMAResource = hardware->txDMAResource;
+#if defined(CH32H41x)
+        uartPort->txDMAMuxId = hardware->txDMAMuxId;
+#else
         uartPort->txDMAChannel = hardware->txDMAChannel;
+#endif   
     }
 #endif
 
@@ -351,6 +367,9 @@ void uartConfigureDma(uartDevice_t *uartdev)
         dmaIdentifier_e identifier = dmaGetIdentifier(uartPort->txDMAResource);
         if (dmaAllocate(identifier, OWNER_SERIAL_TX, RESOURCE_INDEX(hardware->device))) {
             dmaEnable(identifier);
+#if defined(CH32H41x)
+            dmaMuxEnable(identifier, uartPort->txDMAMuxId);     
+#endif            
             dmaSetHandler(identifier, uartDmaIrqHandler, hardware->txPriority, (uint32_t)uartdev);
             uartPort->txDMAPeripheralBaseAddr = (uint32_t)&UART_REG_TXD(hardware->reg);
         }
@@ -360,11 +379,59 @@ void uartConfigureDma(uartDevice_t *uartdev)
         dmaIdentifier_e identifier = dmaGetIdentifier(uartPort->rxDMAResource);
         if (dmaAllocate(identifier, OWNER_SERIAL_RX, RESOURCE_INDEX(hardware->device))) {
             dmaEnable(identifier);
+#if defined(CH32H41x)
+            dmaMuxEnable(identifier, uartPort->rxDMAMuxId);     
+#endif
             uartPort->rxDMAPeripheralBaseAddr = (uint32_t)&UART_REG_RXD(hardware->reg);
         }
     }
 }
 #endif
+
+
+#if defined(CH32H41x)
+
+#define UART_IRQHandler(type, number, dev)                      \
+  __FAST_INTERRUPT  FAST_IRQ_HANDLER void type ## number ## _IRQHandler(void)   \
+    {                                                           \
+        uartPort_t *uartPort = &(uartDevmap[UARTDEV_ ## dev]->port);       \
+        uartIrqHandler(uartPort);                               \
+    }                                                           \
+/**/
+
+#ifdef USE_UART1
+UART_IRQHandler(USART, 1, 1) // USART1 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART2
+UART_IRQHandler(USART, 2, 2) // USART2 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART3
+UART_IRQHandler(USART, 3, 3) // USART3 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART4
+UART_IRQHandler(USART, 4, 4)  // USART4 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART5
+UART_IRQHandler(USART, 5, 5)  // USART5 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART6
+UART_IRQHandler(USART, 6, 6) // USART6 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART7
+UART_IRQHandler(USART, 7, 7)  // USART7 Rx/Tx IRQ Handler
+#endif
+
+#ifdef USE_UART8
+UART_IRQHandler(USART, 8, 8)  // USART8 Rx/Tx IRQ Handler
+#endif
+
+#else
 
 #define UART_IRQHandler(type, number, dev)                    \
     FAST_IRQ_HANDLER void type ## number ## _IRQHandler(void)                  \
@@ -408,5 +475,7 @@ UART_IRQHandler(UART, 8, 8)  // UART8 Rx/Tx IRQ Handler
 #ifdef USE_UART9
 UART_IRQHandler(LPUART, 1, 9) // UART9 (implemented with LPUART1) Rx/Tx IRQ Handler
 #endif
+
+#endif //CH32H41x
 
 #endif // USE_UART
