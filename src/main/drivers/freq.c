@@ -333,7 +333,11 @@ void freqInit(const freqConfig_t *freqConfig)
 
             input->timerHardware = timer;
             input->enabled = true;
+#if defined(CH32H41x)            
+            input->timer32 = (timer->tim == TIM9 || timer->tim == TIM10 || timer->tim == TIM11 || timer->tim == TIM12);
+#else
             input->timer32 = (timer->tim == TIM2 || timer->tim == TIM5);
+#endif
             input->clock = timerClock(timer->tim);
             input->prescaler = (input->timer32) ? 1 : FREQ_PRESCALER_MAX;
             input->overflows = 0;
