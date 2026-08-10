@@ -54,6 +54,7 @@
 #include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
+#include "drivers/accgyro/accgyro_spi_icm40609.h"
 
 #ifdef USE_ACC_ADXL345
 #include "drivers/accgyro_legacy/accgyro_adxl345.h"
@@ -302,7 +303,14 @@ retry:
         }
         FALLTHROUGH;
 #endif
-
+#ifdef USE_ACCGYRO_ICM40609D
+    case ACC_ICM40609D:
+        if(icm40609SpiAccDetect(dev)) {
+            accHardware = ACC_ICM40609D;
+            break;
+        }
+        FALLTHROUGH;    
+#endif
 #ifdef USE_FAKE_ACC
     case ACC_FAKE:
         if (fakeAccDetect(dev)) {

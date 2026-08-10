@@ -52,7 +52,7 @@
 #include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
-
+#include "drivers/accgyro/accgyro_spi_icm40609.h"
 #ifdef USE_GYRO_L3GD20
 #include "drivers/accgyro/accgyro_spi_l3gd20.h"
 #endif
@@ -424,6 +424,15 @@ STATIC_UNIT_TESTED gyroHardware_e gyroDetect(gyroDev_t *dev)
         FALLTHROUGH;
 #endif
 
+#ifdef USE_ACCGYRO_ICM40609D
+    case GYRO_ICM40609D:
+        if(icm40609SpiGyroDetect(dev)) {
+           gyroHardware = GYRO_ICM40609D;
+           break; 
+        }
+        FALLTHROUGH;    
+#endif
+
 #ifdef USE_FAKE_GYRO
     case GYRO_FAKE:
         if (fakeGyroDetect(dev)) {
@@ -449,7 +458,7 @@ static bool gyroDetectSensor(gyroSensor_t *gyroSensor, const gyroDeviceConfig_t 
 {
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) \
  || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20601) || defined(USE_GYRO_SPI_ICM20649) \
- || defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_L3GD20) || defined(USE_ACCGYRO_BMI160) || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_SPI_BMI323) || defined(USE_ACCGYRO_SPI_BMI088) || defined(USE_ACCGYRO_LSM6DSO) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P)
+ || defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_L3GD20) || defined(USE_ACCGYRO_BMI160) || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_SPI_BMI323) || defined(USE_ACCGYRO_SPI_BMI088) || defined(USE_ACCGYRO_LSM6DSO) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_ACCGYRO_ICM40609D)
 
     bool gyroFound = mpuDetect(&gyroSensor->gyroDev, config);
 
@@ -474,7 +483,7 @@ static void gyroPreInitSensor(const gyroDeviceConfig_t *config)
 {
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) \
  || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20601) || defined(USE_GYRO_SPI_ICM20649) \
- || defined(USE_GYRO_SPI_ICM20689) || defined(USE_ACCGYRO_BMI160) || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_SPI_BMI088) || defined(USE_ACCGRYO_LSM6DSO)
+ || defined(USE_GYRO_SPI_ICM20689) || defined(USE_ACCGYRO_BMI160) || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_SPI_BMI088) || defined(USE_ACCGRYO_LSM6DSO) || defined(USE_ACCGYRO_ICM40609D)
     mpuPreInit(config);
 #else
     UNUSED(config);

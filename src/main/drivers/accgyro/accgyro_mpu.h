@@ -46,6 +46,8 @@
 #define ICM42605_WHO_AM_I_CONST             (0x42)
 #define ICM42688P_WHO_AM_I_CONST            (0x47)
 
+#define ICM40609_WHO_AM_I_CONST             (0x3B)
+#define ICM40608_WHO_AM_I_CONST             (0x39)
 // RA = Register Address
 
 #define MPU_RA_XG_OFFS_TC       0x00    //[7] PWR_MODE, [6:1] XG_OFFS_TC, [0] OTP_BNK_VLD
@@ -205,7 +207,8 @@ typedef enum {
     BMI_323_SPI,
     LSM6DSO_SPI,
     L3GD20_SPI,
-    BMI_088_SPI
+    BMI_088_SPI,
+    ICM_40609_SPI
 } mpuSensor_e;
 
 typedef enum {
