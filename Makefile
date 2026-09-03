@@ -101,9 +101,6 @@ export RM := rm
 # import macros that are OS specific
 include $(ROOT)/make/$(OSFAMILY).mk
 
-# include the tools makefile
-include $(ROOT)/make/tools.mk
-
 # default xtal value for F4 targets
 HSE_VALUE       ?= 8000000
 
@@ -118,6 +115,9 @@ FEATURE_CUT_LEVEL =
 PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) test-representative
 
 include $(ROOT)/make/targets.mk
+
+# include the tools makefile (必须在 targets.mk 之后,以便根据 TARGET_MCU 选择工具链)
+include $(ROOT)/make/tools.mk
 
 REVISION := norevision
 ifeq ($(shell git diff --shortstat),)
@@ -241,19 +241,10 @@ CCACHE :=
 endif
 
 # Make parallelism
-JFLAG ?= -j 2
+JFLAG ?= -j 4
 
-# Tool names
-
-# CROSS_CC    := $(CCACHE) $(ARM_SDK_PREFIX)gcc
-# CROSS_CXX   := $(CCACHE) $(ARM_SDK_PREFIX)g++
-# CROSS_GDB   := $(ARM_SDK_PREFIX)gdb
-# OBJCOPY     := $(ARM_SDK_PREFIX)objcopy
-# OBJDUMP     := $(ARM_SDK_PREFIX)objdump
-# READELF     := $(ARM_SDK_PREFIX)readelf
-# SIZE        := $(ARM_SDK_PREFIX)size
-# DFUSE-PACK  := src/utils/dfuse-pack.py
-
+# Tool names - 根据 TARGET_MCU 自动选择 ARM 或 RISCV 工具链
+ifeq ($(TARGET_MCU), CH32H41x)
 CROSS_CC    := $(CCACHE) $(RISCV_SDK_PREFIX)gcc
 CROSS_CXX   := $(CCACHE) $(RISCV_SDK_PREFIX)g++
 CROSS_GDB   := $(RISCV_SDK_PREFIX)gdb
@@ -261,6 +252,15 @@ OBJCOPY     := $(RISCV_SDK_PREFIX)objcopy
 OBJDUMP     := $(RISCV_SDK_PREFIX)objdump
 READELF     := $(RISCV_SDK_PREFIX)readelf
 SIZE        := $(RISCV_SDK_PREFIX)size
+else
+CROSS_CC    := $(CCACHE) $(ARM_SDK_PREFIX)gcc
+CROSS_CXX   := $(CCACHE) $(ARM_SDK_PREFIX)g++
+CROSS_GDB   := $(ARM_SDK_PREFIX)gdb
+OBJCOPY     := $(ARM_SDK_PREFIX)objcopy
+OBJDUMP     := $(ARM_SDK_PREFIX)objdump
+READELF     := $(ARM_SDK_PREFIX)readelf
+SIZE        := $(ARM_SDK_PREFIX)size
+endif
 DFUSE-PACK  := src/utils/dfuse-pack.py
 
 
@@ -422,6 +422,7 @@ $(OBJECT_DIR)/$(TARGET)/build/version.o : $(SRC)
 
 $(TARGET_LST): $(TARGET_ELF)
 	$(V0) $(OBJDUMP) -S --disassemble $< > $@
+	@echo "Creating LST $(TARGET_LST)" "$(STDOUT)"
 
 ifeq ($(EXST),no)
 
@@ -644,8 +645,13 @@ endif
 binary:
 	$(V0) $(MAKE) $(JFLAG) $(TARGET_BIN)
 
+## lst                : build the listing (.lst) file
+lst:
+	$(V0) $(MAKE) $(JFLAG) $(TARGET_LST)
+
 hex:
 	$(V0) $(MAKE) $(JFLAG) $(TARGET_HEX)
+	$(V0) $(MAKE) $(JFLAG) $(TARGET_LST)
 
 unbrick_$(TARGET): $(TARGET_HEX)
 	$(V0) stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon

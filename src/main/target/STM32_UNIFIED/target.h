@@ -461,7 +461,7 @@
 
 #elif defined(CH32H41x)
 
-#define V5_V3_CLOCK_RATE                    4
+// #define V5_V3_CLOCK_RATE                    4
 
 #undef I2C_FULL_RECONFIGURABILITY
 #undef SPI_FULL_RECONFIGURABILITY
