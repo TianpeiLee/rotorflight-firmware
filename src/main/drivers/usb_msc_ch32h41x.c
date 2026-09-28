@@ -202,7 +202,11 @@ static void msc_usb_clk_config(void)
     {
         /* Initialize USBHS 480M PLL */
         RCC_USBHS_PLLCmd(DISABLE);
-        RCC_USBHSPLLCLKConfig(RCC_USBHSPLLSource_HSE);
+#if defined(USE_INTERNAL_HSI)        
+        RCC_USBHSPLLCLKConfig(RCC_USBHSPLLSource_HSI);
+#else
+		RCC_USBHSPLLCLKConfig(RCC_USBHSPLLSource_HSE);
+#endif
         RCC_USBHSPLLReferConfig(RCC_USBHSPLLRefer_25M);
         RCC_USBHSPLLClockSourceDivConfig(RCC_USBHSPLL_IN_Div1);
         RCC_USBHS_PLLCmd(ENABLE);
