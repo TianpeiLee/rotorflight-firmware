@@ -261,6 +261,7 @@ static void bbSetupDma(bbPort_t *bbPort)
 {
     const dmaIdentifier_e dmaIdentifier = dmaGetIdentifier(bbPort->dmaResource);
     dmaEnable(dmaIdentifier);
+    dmaMuxEnable(dmaIdentifier, bbPort->dmaChannel);
     bbPort->dmaSource = timerDmaSource(bbPort->timhw->channel);
 
     bbPacer_t *bbPacer = bbFindMotorPacer(bbPort->timhw->tim);
