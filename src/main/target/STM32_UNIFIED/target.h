@@ -506,8 +506,8 @@
 #define USE_EXTI
 #define USE_DNA_MUX
 
-#define TARGET_IO_PORTA 0xff1f
-#define TARGET_IO_PORTB 0xff7c
+#define TARGET_IO_PORTA 0xffff
+#define TARGET_IO_PORTB 0xffff
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
